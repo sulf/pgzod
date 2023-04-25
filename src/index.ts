@@ -50,6 +50,14 @@ export type Options = {
    * Select the strategy to be used to create the `Zod` schemas.
    */
   strategy?: string;
+  /**
+   * Suffix string for each of the generated schemas
+   */
+  schemaSuffix?: string;
+  /**
+   * Suffix string for each of the generated types
+   */
+  typeSuffix?: string;
 } & CreatePoolProps;
 /**
  * Yargs default command builder function.
@@ -112,6 +120,16 @@ export const builder: (args: Argv<Record<string, unknown>>) => Argv<Options> = (
         choices: ["write", "readwrite"],
         default: "write",
       },
+      schemaSuffix: {
+        type: "string",
+        describe: "Suffix string for each of the generated schemas",
+        default: "Schema",
+      },
+      typeSuffix: {
+        type: "string",
+        describe: "Suffix string for each of the generated types",
+        default: "",
+      },
     })
     // Deactivate the use of environment variables for option configurations.
     .env(true);
@@ -134,6 +152,8 @@ export const handler = async (
     pgpassword,
     pgport,
     pguser,
+    schemaSuffix = "Schema",
+    typeSuffix = "",
   } = argv;
 
   try {
@@ -207,6 +227,8 @@ export const handler = async (
       strategy: Strategy.parse(strategy),
       tables,
       typesMap,
+      schemaSuffix,
+      typeSuffix,
     });
   } catch (err) {
     console.error(err);
@@ -234,6 +256,8 @@ async function runWithStrategy({
   tables,
   typesMap,
   strategy = "write",
+  schemaSuffix,
+  typeSuffix,
 }: StrategyOptions) {
   // Create the spinner
   console.info("Fetching tables metadata");
@@ -282,7 +306,7 @@ async function runWithStrategy({
 
       for (const column of columns) {
         const name = column.column_name;
-        let line = `${name}: `;
+        let line = `${name}${schemaSuffix}: `;
 
         const type = typesMap[column.udt_name];
         line += type;
@@ -300,13 +324,15 @@ async function runWithStrategy({
       }
 
       template.push(`});\n`);
-      template.push(`export type ${name}T = z.infer<typeof ${name}>;\n`);
+      template.push(
+        `export type ${name}${typeSuffix} = z.infer<typeof ${name}${schemaSuffix}>;\n`
+      );
 
       const file = camelCase(name);
       await writeFile(join(output, `${file}.ts`), template.join("\n"));
 
-      index.push(`export type { ${name}T } from './${file}';`);
-      index.push(`export { ${name} } from './${file}';`);
+      index.push(`export type { ${name}${schemaSuffix} } from './${file}';`);
+      index.push(`export { ${name}${schemaSuffix} } from './${file}';`);
     }
   }
 
@@ -328,14 +354,14 @@ function createTypesMap(customZodTypes: Record<string, string>) {
     bpchar: `z.string()`,
     citext: `z.string()`,
     // TODO: Find a better way to handle dates.
-    date: `z.string()`,
+    date: `z.string()).describe("date")`,
     float8: `z.number()`,
     int4: `z.number().int()`,
     jsonb: `jsonSchema`,
     numeric: `z.number()`,
     text: `z.string()`,
     // TODO: Find a better way to handle dates.
-    timestamptz: `z.string()`,
+    timestamptz: `z.string().describe("timestamptz")`,
     uuid: "z.string().uuid()",
     varchar: `z.string()`,
     interval: `z.number()`,
@@ -390,6 +416,8 @@ type StrategyOptions = {
   strategy?: StrategyT;
   tables: readonly InformationSchema[];
   typesMap: { [key: string]: string };
+  schemaSuffix: string;
+  typeSuffix: string;
 };
 // =================
 // Standalone Module
