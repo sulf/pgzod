@@ -302,7 +302,7 @@ async function runWithStrategy({
       const name = pascalCase(
         strategy === "write" ? table_name : table_name + "_" + filetype
       );
-      template.push(`export const ${name} = z.object({`);
+      template.push(`export const ${name}${schemaSuffix} = z.object({`);
 
       for (const column of columns) {
         const name = column.column_name;
@@ -331,7 +331,7 @@ async function runWithStrategy({
       const file = camelCase(name);
       await writeFile(join(output, `${file}.ts`), template.join("\n"));
 
-      index.push(`export type { ${name}${schemaSuffix} } from './${file}';`);
+      index.push(`export type { ${name}${typeSuffix} } from './${file}';`);
       index.push(`export { ${name}${schemaSuffix} } from './${file}';`);
     }
   }
