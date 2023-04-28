@@ -306,7 +306,7 @@ async function runWithStrategy({
 
       for (const column of columns) {
         const name = column.column_name;
-        let line = `${name}${schemaSuffix}: `;
+        let line = `${name}: `;
 
         const type = typesMap[column.udt_name];
         line += type;
